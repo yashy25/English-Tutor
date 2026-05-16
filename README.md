@@ -15,8 +15,8 @@ A web app that helps students practice English skills with AI-powered feedback.
 
 ```bash
 # Clone and enter the project
-git clone https://github.com/yashy25/english-tutor.git
-cd english-tutor
+git clone https://github.com/yashy25/English-Tutor.git
+cd English-Tutor
 
 # Create a virtual environment
 python3 -m venv .venv

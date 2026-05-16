@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reading Practice - English Tutor</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 720px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            color: #222;
+            line-height: 1.6;
+        }
+        h1 { color: #2b5278; margin-bottom: 0.25rem; }
+        h2 { color: #2b5278; margin-top: 2rem; }
+        a { color: #2b5278; }
+        .tag { color: #888; font-size: 0.95rem; margin-top: 0; }
+        .nav { font-size: 0.9rem; margin-bottom: 1rem; }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-top: 1.2rem;
+            margin-bottom: 0.25rem;
+        }
+        input[type="text"], select, textarea {
+            width: 100%;
+            padding: 0.5rem;
+            font-size: 1rem;
+            font-family: inherit;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea { resize: vertical; }
+        button {
+            margin-top: 1.2rem;
+            padding: 0.7rem 1.4rem;
+            background: #2b5278;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        button:hover { background: #1d3a57; }
+        button:disabled { background: #888; cursor: wait; }
+
+        .passage {
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            background: #fafaf5;
+            border-left: 4px solid #b58a3e;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .question {
+            margin-top: 1.5rem;
+            padding: 1rem 1.25rem;
+            background: #f4f7fb;
+            border-radius: 4px;
+        }
+        .question p.q-text { font-weight: 600; margin-top: 0; }
+        .radio-option {
+            display: block;
+            font-weight: 400;
+            margin: 0.4rem 0;
+            cursor: pointer;
+        }
+        .radio-option input { margin-right: 0.5rem; }
+
+        .score {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2b5278;
+            margin-top: 1rem;
+        }
+        .summary {
+            padding: 1rem 1.25rem;
+            background: #f4f7fb;
+            border-left: 4px solid #2b5278;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+        .result {
+            margin-top: 1rem;
+            padding: 1rem 1.25rem;
+            border-radius: 4px;
+            border-left: 4px solid #888;
+        }
+        .result.correct { background: #f0f9f0; border-left-color: #2d8a3e; }
+        .result.incorrect { background: #fdf2f2; border-left-color: #b94343; }
+        .result .verdict { font-weight: 600; margin-top: 0.5rem; }
+        .result.correct .verdict { color: #2d8a3e; }
+        .result.incorrect .verdict { color: #b94343; }
+        .result .answer-line { color: #555; font-size: 0.95rem; }
+        details summary { cursor: pointer; color: #2b5278; font-weight: 600; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <p class="nav"><a href="/">&larr; Home</a></p>
+    <h1>Reading practice</h1>
+
+    {# ============================================================ #}
+    {# PHASE 1: Form to request a passage                            #}
+    {# ============================================================ #}
+    {% if phase == "form" %}
+        <p class="tag">Generate a grade-appropriate passage on any topic, then quiz yourself on it.</p>
+
+        <form method="POST" action="/reading/passage"
+              onsubmit="document.getElementById('gen-btn').disabled=true; document.getElementById('gen-btn').textContent='Writing your passage...';">
+            <label for="grade">Your grade level</label>
+            <select id="grade" name="grade" required>
+                {% for g in range(1, 13) %}
+                    <option value="{{ g }}">Grade {{ g }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="topic">Topic</label>
+            <input type="text" id="topic" name="topic" required
+                   placeholder="e.g., dolphins, the moon landing, ancient Egypt">
+
+            <label for="num_questions">Number of questions</label>
+            <select id="num_questions" name="num_questions">
+                <option value="3">3</option>
+                <option value="4" selected>4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+            </select>
+
+            <label for="quiz_format">Quiz format</label>
+            <select id="quiz_format" name="quiz_format" required>
+                <option value="multiple_choice">Multiple choice</option>
+                <option value="short_answer">Short answer</option>
+            </select>
+
+            <button type="submit" id="gen-btn">Generate passage</button>
+        </form>
+
+    {# ============================================================ #}
+    {# PHASE 2: Passage + quiz form                                  #}
+    {# ============================================================ #}
+    {% elif phase == "quiz" %}
+        <h2>Read the passage</h2>
+        <div class="passage">{{ passage }}</div>
+
+        <form method="POST" action="/reading/grade"
+              onsubmit="document.getElementById('grade-btn').disabled=true; document.getElementById('grade-btn').textContent='Grading...';">
+            <h2>Answer the questions</h2>
+
+            <input type="hidden" name="grade" value="{{ grade }}">
+            <input type="hidden" name="passage" value="{{ passage }}">
+            <input type="hidden" name="quiz_format" value="{{ quiz_format }}">
+            <input type="hidden" name="questions_json" value="{{ questions_json }}">
+
+            {% for q in questions %}
+                {% set qidx = loop.index0 %}
+                <div class="question">
+                    <p class="q-text">{{ loop.index }}. {{ q.question }}</p>
+                    {% if quiz_format == "multiple_choice" %}
+                        {% for opt in q.options %}
+                            <label class="radio-option">
+                                <input type="radio"
+                                       name="answer_{{ qidx }}"
+                                       value="{{ ['A','B','C','D'][loop.index0] }}"
+                                       required>
+                                {{ ['A','B','C','D'][loop.index0] }}) {{ opt }}
+                            </label>
+                        {% endfor %}
+                    {% else %}
+                        <textarea name="answer_{{ qidx }}" rows="2" required
+                                  placeholder="Type your answer..."></textarea>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <button type="submit" id="grade-btn">Submit answers</button>
+        </form>
+
+    {# ============================================================ #}
+    {# PHASE 3: Results                                              #}
+    {# ============================================================ #}
+    {% elif phase == "results" %}
+        <p class="score">You got {{ score }} out of {{ total }} correct.</p>
+        <div class="summary">{{ summary }}</div>
+
+        <details>
+            <summary>Show the passage again</summary>
+            <div class="passage" style="margin-top: 0.75rem;">{{ passage }}</div>
+        </details>
+
+        <h2>Question by question</h2>
+        {% for r in results %}
+            <div class="result {{ 'correct' if r.is_correct else 'incorrect' }}">
+                <p class="q-text">{{ loop.index }}. {{ r.question.question }}</p>
+                {% if quiz_format == "multiple_choice" %}
+                    <p class="answer-line">Your answer: <strong>{{ r.student_answer or '(none)' }}</strong>
+                       &nbsp;|&nbsp; Correct: <strong>{{ r.question.correct_answer }}</strong></p>
+                {% else %}
+                    <p class="answer-line">Your answer: {{ r.student_answer or '(no answer)' }}</p>
+                {% endif %}
+                <p class="verdict">{{ '✓ Correct' if r.is_correct else '✗ Incorrect' }}</p>
+                <p>{{ r.feedback }}</p>
+            </div>
+        {% endfor %}
+
+        <p style="margin-top: 2rem;">
+            <a href="/reading">&larr; Try another passage</a>
+        </p>
+    {% endif %}
+</body>
+</html>
