@@ -271,3 +271,311 @@ INSTRUCTIONS:
     )
 
     return response.parsed
+
+
+# ---------------------------------------------------------------------------
+# Grammar practice
+# ---------------------------------------------------------------------------
+
+class GrammarSentence(BaseModel):
+    """One sentence with a grammar error and its correction."""
+    original: str
+    corrected: str
+    explanation: str
+
+
+class GrammarExercise(BaseModel):
+    """A set of grammar sentences for practice."""
+    sentences: list[GrammarSentence]
+
+
+class GrammarGradedAnswer(BaseModel):
+    """Grading result for one grammar correction."""
+    is_correct: bool
+    feedback: str
+
+
+class GrammarGradedExercise(BaseModel):
+    """Grading results for the full grammar exercise."""
+    graded_answers: list[GrammarGradedAnswer]
+    summary: str
+
+
+def generate_grammar_exercise(grade: int, num_sentences: int, focus: str) -> GrammarExercise:
+    """Generate sentences with grammar errors for the student to correct."""
+    prompt = f"""Create a grammar exercise for a grade {grade} student.
+
+FOCUS AREA: {focus}
+
+REQUIREMENTS:
+- Generate exactly {num_sentences} sentences, each containing ONE grammar error related to the focus area.
+- The errors should be grade-appropriate for grade {grade}.
+- Each sentence should be realistic and something a student might write.
+- Provide the corrected version and a brief explanation of the rule.
+
+For grade 1-3: focus on basic errors like capitalization, simple subject-verb agreement, basic punctuation.
+For grade 4-5: include verb tense, pronoun agreement, comma usage.
+For grade 6-8: include more complex errors like misplaced modifiers, run-on sentences, comma splices.
+For grade 9-12: include subtle errors like dangling participles, parallel structure, subjunctive mood."""
+
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=GrammarExercise,
+            max_output_tokens=4096,
+        ),
+    )
+    return response.parsed
+
+
+def grade_grammar_exercise(
+    grade: int,
+    sentences: list[GrammarSentence],
+    student_answers: list[str],
+) -> GrammarGradedExercise:
+    """Grade a student's grammar corrections."""
+    answer_blocks = []
+    for i, (s, ans) in enumerate(zip(sentences, student_answers), start=1):
+        answer_blocks.append(
+            f"Sentence {i}: {s.original}\n"
+            f"Expected correction: {s.corrected}\n"
+            f"Student's correction: {ans or '(no answer)'}"
+        )
+
+    prompt = f"""You are grading a grade {grade} student's grammar exercise.
+
+The student was asked to correct sentences with grammar errors.
+
+SENTENCES AND STUDENT ANSWERS:
+
+{chr(10).join(answer_blocks)}
+
+INSTRUCTIONS:
+- For each sentence, determine if the student's correction fixes the grammar error.
+- Accept corrections that fix the targeted error even if the wording differs slightly from the expected answer.
+- Set 'is_correct' (true/false) and write 1-2 sentences of helpful feedback.
+- If wrong, explain what the correct answer should be and why.
+- Write a 'summary' (2-3 sentences) of overall performance with encouragement."""
+
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=GrammarGradedExercise,
+            max_output_tokens=4096,
+        ),
+    )
+    return response.parsed
+
+
+# ---------------------------------------------------------------------------
+# Spelling practice
+# ---------------------------------------------------------------------------
+
+class SpellingWord(BaseModel):
+    """A word for the spelling quiz with a clue."""
+    word: str
+    clue: str
+    sentence_with_blank: str
+
+
+class SpellingExercise(BaseModel):
+    """A set of spelling words for practice."""
+    words: list[SpellingWord]
+
+
+class SpellingGradedAnswer(BaseModel):
+    """Grading result for one spelling answer."""
+    is_correct: bool
+    feedback: str
+
+
+class SpellingGradedExercise(BaseModel):
+    """Grading results for the full spelling exercise."""
+    graded_answers: list[SpellingGradedAnswer]
+    summary: str
+
+
+def generate_spelling_exercise(grade: int, num_words: int) -> SpellingExercise:
+    """Generate a spelling quiz with clues and fill-in-the-blank sentences."""
+    prompt = f"""Create a spelling exercise for a grade {grade} student.
+
+REQUIREMENTS:
+- Generate exactly {num_words} words appropriate for grade {grade} spelling level.
+- For each word provide:
+  1. The correctly spelled word
+  2. A short clue or definition (1 sentence)
+  3. A sentence using the word, but with the word replaced by a blank (use "___")
+
+Grade-level guidance:
+- Grades 1-3: common sight words, CVC patterns, basic phonics words (3-5 letters)
+- Grades 4-5: multi-syllable words, common prefixes/suffixes, frequently misspelled words
+- Grades 6-8: academic vocabulary, Greek/Latin roots, commonly confused words
+- Grades 9-12: SAT/ACT vocabulary, advanced academic words, words with tricky spellings"""
+
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=SpellingExercise,
+            max_output_tokens=4096,
+        ),
+    )
+    return response.parsed
+
+
+def grade_spelling_exercise(
+    grade: int,
+    words: list[SpellingWord],
+    student_answers: list[str],
+) -> SpellingGradedExercise:
+    """Grade a student's spelling answers."""
+    answer_blocks = []
+    for i, (w, ans) in enumerate(zip(words, student_answers), start=1):
+        answer_blocks.append(
+            f"Word {i}:\n"
+            f"  Clue: {w.clue}\n"
+            f"  Correct spelling: {w.word}\n"
+            f"  Student's answer: {ans or '(no answer)'}"
+        )
+
+    tone = (
+        "Be very encouraging. Accept the answer if it's spelled correctly even with different capitalization."
+        if grade <= 5
+        else "Be fair. The spelling must be exact (case-insensitive)."
+    )
+
+    prompt = f"""You are grading a grade {grade} student's spelling exercise.
+
+WORDS AND STUDENT ANSWERS:
+
+{chr(10).join(answer_blocks)}
+
+INSTRUCTIONS:
+- {tone}
+- For each word, set 'is_correct' (true/false) and write brief feedback.
+- If incorrect, show the correct spelling and offer a memory tip.
+- Write a 'summary' (2-3 sentences) of overall performance with encouragement."""
+
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=SpellingGradedExercise,
+            max_output_tokens=4096,
+        ),
+    )
+    return response.parsed
+
+
+# ---------------------------------------------------------------------------
+# Literary term practice
+# ---------------------------------------------------------------------------
+
+class LiteraryTermQuestion(BaseModel):
+    """A question about a literary term with a passage example."""
+    term: str
+    definition: str
+    passage_example: str
+    question: str
+    options: list[str]
+    correct_answer: str
+
+
+class LiteraryTermExercise(BaseModel):
+    """A set of literary term questions."""
+    questions: list[LiteraryTermQuestion]
+
+
+class LiteraryTermGradedAnswer(BaseModel):
+    """Grading result for one literary term answer."""
+    is_correct: bool
+    feedback: str
+
+
+class LiteraryTermGradedExercise(BaseModel):
+    """Grading results for the full literary term exercise."""
+    graded_answers: list[LiteraryTermGradedAnswer]
+    summary: str
+
+
+def generate_literary_term_exercise(grade: int, num_questions: int) -> LiteraryTermExercise:
+    """Generate a literary term identification exercise."""
+    prompt = f"""Create a literary term practice exercise for a grade {grade} student.
+
+REQUIREMENTS:
+- Generate exactly {num_questions} questions about literary terms/devices.
+- Each question includes:
+  1. A literary term (the answer)
+  2. A short definition of the term
+  3. A short passage or sentence that demonstrates the term (original, not from any published work)
+  4. A question asking the student to identify which literary device is being used
+  5. Four multiple-choice options (the correct term plus 3 plausible distractors)
+  6. The correct answer letter (A, B, C, or D)
+
+Grade-level guidance:
+- Grades 4-5: simile, metaphor, alliteration, personification, hyperbole, onomatopoeia
+- Grades 6-8: add imagery, symbolism, foreshadowing, irony, tone, mood, theme, conflict types
+- Grades 9-12: add motif, allegory, juxtaposition, satire, paradox, allusion, synecdoche, metonymy, epistrophe, anaphora
+
+Put the 4 option texts in 'options' without letter prefixes.
+Set 'correct_answer' to the LETTER (A, B, C, or D) of the correct option."""
+
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=LiteraryTermExercise,
+            max_output_tokens=4096,
+        ),
+    )
+    return response.parsed
+
+
+def grade_literary_term_exercise(
+    grade: int,
+    questions: list[LiteraryTermQuestion],
+    student_answers: list[str],
+) -> LiteraryTermGradedExercise:
+    """Grade a student's literary term answers."""
+    answer_blocks = []
+    for i, (q, ans) in enumerate(zip(questions, student_answers), start=1):
+        options_text = "\n".join(
+            f"  {chr(65 + j)}. {opt}" for j, opt in enumerate(q.options)
+        )
+        answer_blocks.append(
+            f"Question {i}: {q.question}\n"
+            f"Passage: {q.passage_example}\n"
+            f"Options:\n{options_text}\n"
+            f"Correct answer: {q.correct_answer} ({q.term})\n"
+            f"Student's answer: {ans or '(no answer)'}"
+        )
+
+    prompt = f"""You are grading a grade {grade} student's literary term exercise.
+
+QUESTIONS AND STUDENT ANSWERS:
+
+{chr(10).join(answer_blocks)}
+
+INSTRUCTIONS:
+- For each question, set 'is_correct' (true/false) and write 1-2 sentences of feedback.
+- If correct, briefly reinforce why the example demonstrates that literary device.
+- If incorrect, explain what the correct answer is and help them understand the device.
+- Write a 'summary' (2-3 sentences) of overall performance with encouragement."""
+
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=LiteraryTermGradedExercise,
+            max_output_tokens=4096,
+        ),
+    )
+    return response.parsed

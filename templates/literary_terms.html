@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Literary Terms Practice - English Tutor</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 720px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            color: #222;
+            line-height: 1.6;
+        }
+        h1 { color: #2b5278; margin-bottom: 0.25rem; }
+        h2 { color: #2b5278; margin-top: 2rem; }
+        a { color: #2b5278; }
+        .tag { color: #888; font-size: 0.95rem; margin-top: 0; }
+        .nav { font-size: 0.9rem; margin-bottom: 1rem; }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-top: 1.2rem;
+            margin-bottom: 0.25rem;
+        }
+        select {
+            width: 100%;
+            padding: 0.5rem;
+            font-size: 1rem;
+            font-family: inherit;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            margin-top: 1.2rem;
+            padding: 0.7rem 1.4rem;
+            background: #2b5278;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        button:hover { background: #1d3a57; }
+        button:disabled { background: #888; cursor: wait; }
+
+        .question {
+            margin-top: 1.5rem;
+            padding: 1rem 1.25rem;
+            background: #f4f7fb;
+            border-radius: 4px;
+        }
+        .question .passage {
+            margin: 0.75rem 0;
+            padding: 0.75rem 1rem;
+            background: #fafaf5;
+            border-left: 4px solid #b58a3e;
+            border-radius: 4px;
+            font-style: italic;
+        }
+        .question p.q-text { font-weight: 600; margin-top: 0.75rem; }
+        .radio-option {
+            display: block;
+            font-weight: 400;
+            margin: 0.4rem 0;
+            cursor: pointer;
+        }
+        .radio-option input { margin-right: 0.5rem; }
+
+        .score {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2b5278;
+            margin-top: 1rem;
+        }
+        .summary {
+            padding: 1rem 1.25rem;
+            background: #f4f7fb;
+            border-left: 4px solid #2b5278;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+        .result {
+            margin-top: 1rem;
+            padding: 1rem 1.25rem;
+            border-radius: 4px;
+            border-left: 4px solid #888;
+        }
+        .result.correct { background: #f0f9f0; border-left-color: #2d8a3e; }
+        .result.incorrect { background: #fdf2f2; border-left-color: #b94343; }
+        .result .verdict { font-weight: 600; margin-top: 0.5rem; }
+        .result.correct .verdict { color: #2d8a3e; }
+        .result.incorrect .verdict { color: #b94343; }
+        .result .answer-line { color: #555; font-size: 0.95rem; }
+        .result .passage {
+            margin: 0.5rem 0;
+            padding: 0.5rem 0.75rem;
+            background: #fafaf5;
+            border-left: 3px solid #b58a3e;
+            border-radius: 4px;
+            font-style: italic;
+            font-size: 0.95rem;
+        }
+        .result .definition { color: #555; font-size: 0.9rem; margin-top: 0.25rem; }
+    </style>
+</head>
+<body>
+    <p class="nav"><a href="/">&larr; Home</a></p>
+    <h1>Literary terms practice</h1>
+
+    {% if phase == "form" %}
+        <p class="tag">Identify literary devices in example passages.</p>
+
+        <form method="POST" action="/literary-terms/generate"
+              onsubmit="document.getElementById('gen-btn').disabled=true; document.getElementById('gen-btn').textContent='Generating questions...';">
+            <label for="grade">Your grade level</label>
+            <select id="grade" name="grade" required>
+                {% for g in range(4, 13) %}
+                    <option value="{{ g }}">Grade {{ g }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="num_questions">Number of questions</label>
+            <select id="num_questions" name="num_questions">
+                <option value="3">3</option>
+                <option value="5" selected>5</option>
+                <option value="7">7</option>
+                <option value="10">10</option>
+            </select>
+
+            <button type="submit" id="gen-btn">Generate exercise</button>
+        </form>
+
+    {% elif phase == "exercise" %}
+        <p class="tag">Read each passage and identify the literary device being used.</p>
+
+        <form method="POST" action="/literary-terms/grade"
+              onsubmit="document.getElementById('grade-btn').disabled=true; document.getElementById('grade-btn').textContent='Grading...';">
+            <input type="hidden" name="grade" value="{{ grade }}">
+            <input type="hidden" name="questions_json" value="{{ questions_json }}">
+
+            {% for q in questions %}
+                {% set qidx = loop.index0 %}
+                <div class="question">
+                    <p><strong>{{ loop.index }}.</strong></p>
+                    <div class="passage">{{ q.passage_example }}</div>
+                    <p class="q-text">{{ q.question }}</p>
+                    {% for opt in q.options %}
+                        <label class="radio-option">
+                            <input type="radio"
+                                   name="answer_{{ qidx }}"
+                                   value="{{ ['A','B','C','D'][loop.index0] }}"
+                                   required>
+                            {{ ['A','B','C','D'][loop.index0] }}) {{ opt }}
+                        </label>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+
+            <button type="submit" id="grade-btn">Submit answers</button>
+        </form>
+
+    {% elif phase == "results" %}
+        <p class="score">You got {{ score }} out of {{ total }} correct.</p>
+        <div class="summary">{{ summary }}</div>
+
+        <h2>Question by question</h2>
+        {% for r in results %}
+            <div class="result {{ 'correct' if r.is_correct else 'incorrect' }}">
+                <p><strong>{{ loop.index }}.</strong> {{ r.question.question }}</p>
+                <div class="passage">{{ r.question.passage_example }}</div>
+                <p class="answer-line">Your answer: <strong>{{ r.student_answer or '(none)' }}</strong>
+                   &nbsp;|&nbsp; Correct: <strong>{{ r.question.correct_answer }} ({{ r.question.term }})</strong></p>
+                <p class="definition">{{ r.question.term }}: {{ r.question.definition }}</p>
+                <p class="verdict">{{ 'Correct' if r.is_correct else 'Incorrect' }}</p>
+                <p>{{ r.feedback }}</p>
+            </div>
+        {% endfor %}
+
+        <p style="margin-top: 2rem;">
+            <a href="/literary-terms">&larr; Try another exercise</a>
+        </p>
+    {% endif %}
+</body>
+</html>
