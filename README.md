@@ -15,7 +15,7 @@ A web app that helps students practice English skills with AI-powered feedback.
 
 ```bash
 # Clone and enter the project
-git clone https://github.com/YOUR-USERNAME/english-tutor.git
+git clone https://github.com/yashy25/english-tutor.git
 cd english-tutor
 
 # Create a virtual environment
@@ -27,7 +27,7 @@ pip install -r requirements.txt
 
 # Add your API key
 cp .env.example .env
-# Then edit .env and paste in your Anthropic API key
+# Then edit .env and paste in your Gemini API key from aistudio.google.com
 
 # Run the app
 uvicorn main:app --reload
@@ -38,6 +38,6 @@ Open http://localhost:8000 in your browser.
 ## Tech stack
 
 - **FastAPI** — web framework
-- **Anthropic SDK** — Claude API for AI features
+- **Google Gemini API** — AI feedback (free tier)
 - **Jinja2** — HTML templating
 - **SQLite** — local database (added later)

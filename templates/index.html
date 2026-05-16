@@ -10,14 +10,70 @@
             margin: 4rem auto;
             padding: 0 1rem;
             color: #222;
+            line-height: 1.5;
         }
-        h1 { color: #2b5278; }
-        .tag { color: #888; font-size: 0.9rem; }
+        h1 { color: #2b5278; margin-bottom: 0.25rem; }
+        .tag { color: #888; font-size: 0.95rem; margin-top: 0; }
+        .features { list-style: none; padding: 0; margin-top: 2rem; }
+        .features li {
+            margin-bottom: 0.75rem;
+        }
+        .features a {
+            display: block;
+            padding: 1rem 1.25rem;
+            background: #f4f7fb;
+            border-left: 4px solid #2b5278;
+            border-radius: 4px;
+            color: #2b5278;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .features a:hover { background: #e7eef7; }
+        .features .desc { display: block; color: #555; font-weight: 400; font-size: 0.9rem; margin-top: 0.25rem; }
+        .features .coming { opacity: 0.5; pointer-events: none; cursor: default; }
     </style>
 </head>
 <body>
     <h1>English Tutor</h1>
-    <p class="tag">Helping students practice writing, reading, grammar, and more.</p>
-    <p>The app is running. Features are coming soon.</p>
+    <p class="tag">Practice writing, reading, grammar, and more &mdash; with AI feedback.</p>
+
+    <ul class="features">
+        <li>
+            <a href="/writing">
+                Writing practice
+                <span class="desc">Submit your writing and get grade-appropriate feedback.</span>
+            </a>
+        </li>
+        <li>
+            <a class="coming">
+                Reading passages and quizzes
+                <span class="desc">Coming soon</span>
+            </a>
+        </li>
+        <li>
+            <a class="coming">
+                Grammar checker
+                <span class="desc">Coming soon</span>
+            </a>
+        </li>
+        <li>
+            <a class="coming">
+                Literary term practice
+                <span class="desc">Coming soon</span>
+            </a>
+        </li>
+        <li>
+            <a class="coming">
+                Vocabulary practice
+                <span class="desc">Coming soon</span>
+            </a>
+        </li>
+        <li>
+            <a class="coming">
+                Spelling practice
+                <span class="desc">Coming soon</span>
+            </a>
+        </li>
+    </ul>
 </body>
 </html>
