@@ -579,3 +579,155 @@ INSTRUCTIONS:
         ),
     )
     return response.parsed
+
+
+# ---------------------------------------------------------------------------
+# Vocabulary practice
+# ---------------------------------------------------------------------------
+
+class VocabWord(BaseModel):
+    """A vocabulary word with definition and usage."""
+    word: str
+    definition: str
+    example_sentence: str
+    part_of_speech: str
+
+
+class VocabExercise(BaseModel):
+    """A set of vocabulary words and questions."""
+    words: list[VocabWord]
+
+
+class VocabQuestion(BaseModel):
+    """A vocabulary quiz question."""
+    question: str
+    options: list[str]
+    correct_answer: str
+
+
+class VocabQuiz(BaseModel):
+    """Generated quiz questions for vocabulary words."""
+    questions: list[VocabQuestion]
+
+
+class VocabGradedAnswer(BaseModel):
+    """Grading result for one vocabulary answer."""
+    is_correct: bool
+    feedback: str
+
+
+class VocabGradedExercise(BaseModel):
+    """Grading results for the full vocabulary exercise."""
+    graded_answers: list[VocabGradedAnswer]
+    summary: str
+
+
+def generate_vocab_exercise(grade: int, num_words: int, topic: str) -> VocabExercise:
+    """Generate vocabulary words with definitions and example sentences."""
+    prompt = f"""Create a vocabulary exercise for a grade {grade} student.
+
+TOPIC/CATEGORY: {topic}
+
+REQUIREMENTS:
+- Generate exactly {num_words} vocabulary words appropriate for grade {grade}.
+- For each word provide:
+  1. The word itself
+  2. A clear, student-friendly definition
+  3. An example sentence demonstrating proper usage
+  4. The part of speech (noun, verb, adjective, adverb, etc.)
+
+Grade-level guidance:
+- Grades 1-3: basic sight words, common nouns/verbs, simple descriptive adjectives
+- Grades 4-5: grade-level academic vocabulary, words with prefixes/suffixes, content-area words
+- Grades 6-8: academic vocabulary, words from literature, content-specific terms, words with Greek/Latin roots
+- Grades 9-12: SAT/ACT prep words, advanced academic vocabulary, nuanced synonyms, domain-specific terminology"""
+
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=VocabExercise,
+            max_output_tokens=4096,
+        ),
+    )
+    return response.parsed
+
+
+def generate_vocab_quiz(grade: int, words: list[VocabWord]) -> VocabQuiz:
+    """Generate quiz questions for the vocabulary words."""
+    word_blocks = []
+    for i, w in enumerate(words, start=1):
+        word_blocks.append(
+            f"Word {i}: {w.word}\n"
+            f"  Definition: {w.definition}\n"
+            f"  Part of speech: {w.part_of_speech}\n"
+            f"  Example: {w.example_sentence}"
+        )
+
+    prompt = f"""Create a multiple-choice vocabulary quiz for a grade {grade} student based on these words:
+
+{chr(10).join(word_blocks)}
+
+REQUIREMENTS:
+- Create exactly {len(words)} questions, one per word.
+- Mix question types:
+  * "Which word means..." (definition to word)
+  * "What does [word] mean?" (word to definition)
+  * "Choose the word that best completes the sentence: ___" (context clues)
+- Each question must have exactly 4 options using words or definitions from the list.
+- Put the 4 option texts in 'options' without letter prefixes.
+- Set 'correct_answer' to the LETTER (A, B, C, or D) of the correct option."""
+
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=VocabQuiz,
+            max_output_tokens=4096,
+        ),
+    )
+    return response.parsed
+
+
+def grade_vocab_exercise(
+    grade: int,
+    questions: list[VocabQuestion],
+    student_answers: list[str],
+) -> VocabGradedExercise:
+    """Grade a student's vocabulary quiz answers."""
+    answer_blocks = []
+    for i, (q, ans) in enumerate(zip(questions, student_answers), start=1):
+        options_text = "\n".join(
+            f"  {chr(65 + j)}. {opt}" for j, opt in enumerate(q.options)
+        )
+        answer_blocks.append(
+            f"Question {i}: {q.question}\n"
+            f"Options:\n{options_text}\n"
+            f"Correct answer: {q.correct_answer}\n"
+            f"Student's answer: {ans or '(no answer)'}"
+        )
+
+    prompt = f"""You are grading a grade {grade} student's vocabulary quiz.
+
+QUESTIONS AND STUDENT ANSWERS:
+
+{chr(10).join(answer_blocks)}
+
+INSTRUCTIONS:
+- For each question, set 'is_correct' (true/false) and write 1-2 sentences of feedback.
+- If correct, reinforce the meaning or give a quick usage tip.
+- If incorrect, explain the correct answer and help them remember the word.
+- Write a 'summary' (2-3 sentences) of overall performance with encouragement."""
+
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=VocabGradedExercise,
+            max_output_tokens=4096,
+        ),
+    )
+    return response.parsed

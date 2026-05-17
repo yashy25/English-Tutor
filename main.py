@@ -18,6 +18,11 @@ from ai_client import (
     generate_literary_term_exercise,
     grade_literary_term_exercise,
     LiteraryTermQuestion,
+    generate_vocab_exercise,
+    generate_vocab_quiz,
+    grade_vocab_exercise,
+    VocabWord,
+    VocabQuestion,
 )
 
 app = FastAPI(title="English Tutor")
@@ -355,6 +360,80 @@ async def literary_terms_grade(request: Request):
 
     return templates.TemplateResponse(
         "literary_terms.html",
+        {
+            "request": request,
+            "phase": "results",
+            "grade": grade,
+            "results": results,
+            "summary": graded.summary,
+            "score": score,
+            "total": len(questions),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Vocabulary
+# ---------------------------------------------------------------------------
+
+@app.get("/vocabulary", response_class=HTMLResponse)
+def vocabulary_form(request: Request):
+    return templates.TemplateResponse(
+        "vocabulary.html",
+        {"request": request, "phase": "form"},
+    )
+
+
+@app.post("/vocabulary/generate", response_class=HTMLResponse)
+def vocabulary_generate(
+    request: Request,
+    grade: int = Form(...),
+    num_words: int = Form(5),
+    topic: str = Form(...),
+):
+    exercise = generate_vocab_exercise(grade=grade, num_words=num_words, topic=topic)
+    quiz = generate_vocab_quiz(grade=grade, words=exercise.words)
+    return templates.TemplateResponse(
+        "vocabulary.html",
+        {
+            "request": request,
+            "phase": "exercise",
+            "grade": grade,
+            "words": exercise.words,
+            "questions": quiz.questions,
+            "questions_json": json.dumps(
+                [q.model_dump() for q in quiz.questions]
+            ),
+        },
+    )
+
+
+@app.post("/vocabulary/grade", response_class=HTMLResponse)
+async def vocabulary_grade(request: Request):
+    form = await request.form()
+    grade = int(form["grade"])
+    questions = [VocabQuestion(**q) for q in json.loads(form["questions_json"])]
+    student_answers = [
+        form.get(f"answer_{i}", "") for i in range(len(questions))
+    ]
+
+    graded = grade_vocab_exercise(
+        grade=grade, questions=questions, student_answers=student_answers
+    )
+
+    results = [
+        {
+            "question": q,
+            "student_answer": ans,
+            "is_correct": g.is_correct,
+            "feedback": g.feedback,
+        }
+        for q, ans, g in zip(questions, student_answers, graded.graded_answers)
+    ]
+    score = sum(1 for r in results if r["is_correct"])
+
+    return templates.TemplateResponse(
+        "vocabulary.html",
         {
             "request": request,
             "phase": "results",
